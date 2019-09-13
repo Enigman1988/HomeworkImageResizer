@@ -11,28 +11,54 @@ namespace ImageResizer
     {
         static string sourcePath;
         static string destinationPath;
-        static long originSpendingTime = 0;
-        static long newSpendingTime = 0;
+        static string destinationPathAsync;
         static double resizeRatio;
+        static public ImageProcess imageProcess;
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             sourcePath = Path.Combine(Environment.CurrentDirectory, "images");
             destinationPath = Path.Combine(Environment.CurrentDirectory, "output");
+            destinationPathAsync = Path.Combine(Environment.CurrentDirectory, "outputAsync");
             resizeRatio = 2.0;
+            imageProcess = new ImageProcess();
+            Console.WriteLine("執行中 請稍候");
 
-            ImageProcess imageProcess = new ImageProcess();
-
-            imageProcess.Clean(destinationPath);
-            originSpendingTime = ExecuteResizeAndCalculateSpendingTime(new Action<string, string, double>(imageProcess.ResizeImages));
-
-            imageProcess.Clean(destinationPath);
-            newSpendingTime = ExecuteResizeAndCalculateSpendingTime(new Action<string, string, double>(imageProcess.ResizeImagesAsync));
+            long originSpendingTime = CalculateSpendingTimeResize();
+            long newSpendingTime = await CalculateSpendingTimeResizeAsync();
 
             ShowEfficenty(originSpendingTime, newSpendingTime);
 
             Console.WriteLine("Press any key to continue.");
             Console.ReadKey();
+        }
+
+        /// <summary>
+        /// 執行同步縮放並計算執行時間
+        /// </summary>
+        /// <returns>耗時(毫秒)</returns>
+        static long CalculateSpendingTimeResize()
+        {
+            imageProcess.Clean(destinationPath);
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            imageProcess.ResizeImages(sourcePath, destinationPath, resizeRatio);
+            sw.Stop();
+            return sw.ElapsedMilliseconds;
+        }
+
+        /// <summary>
+        /// 執行非同步縮放並計算執行時間
+        /// </summary>
+        /// <returns>耗時(毫秒)</returns>
+        static async Task<long> CalculateSpendingTimeResizeAsync()
+        {
+            imageProcess.Clean(destinationPathAsync);
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            await imageProcess.ResizeImagesAsync(sourcePath, destinationPathAsync, resizeRatio);
+            sw.Stop();
+            return sw.ElapsedMilliseconds;
         }
 
         /// <summary>
@@ -50,20 +76,6 @@ namespace ImageResizer
                 var eff = ((double)oriTime / (double)newTime - 1) * 100;
                 Console.WriteLine($"非同步縮放效率提升了 {eff.ToString("f2")}%");
             }
-        }
-
-        /// <summary>
-        /// 執行縮放並計算執行時間
-        /// </summary>
-        /// <param name="action">縮放方法</param>
-        /// <returns></returns>
-        static long ExecuteResizeAndCalculateSpendingTime(Action<string, string, double> action)
-        {
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            action(sourcePath, destinationPath, resizeRatio);
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
         }
     }
 }
